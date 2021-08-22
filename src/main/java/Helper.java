@@ -76,7 +76,7 @@ public class Helper {
                             }
                             UUID marriedTo = null;
                             if (!unity.getMember1().equals(playerUUID)) {
-                                marriedTo = unity.getMember2();
+                                marriedTo = unity.getMember1();
                             } else if (!unity.getMember2().equals(playerUUID)) {
                                 marriedTo = unity.getMember2();
                             }
