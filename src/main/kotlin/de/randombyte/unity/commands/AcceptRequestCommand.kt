@@ -2,6 +2,7 @@ package de.randombyte.unity.commands
 
 import de.randombyte.kosp.PlayerExecutedCommand
 import de.randombyte.kosp.extensions.toText
+import Helper
 import de.randombyte.unity.Unity
 import de.randombyte.unity.config.Config
 import de.randombyte.unity.config.ConfigAccessor
@@ -27,11 +28,14 @@ class AcceptRequestCommand(
         requireSingle(player, requester, config.unities)
 
         removeRequest(requester.uniqueId, player.uniqueId)
-        val newConfig = config.copy(unities = config.unities + Config.Unity(
-                member1 = requester.uniqueId,
-                member2 = player.uniqueId,
-                date = Date.from(Instant.now())
-        ))
+        val newUnity = Config.Unity(
+            member1 = requester.uniqueId,
+            member2 = player.uniqueId,
+            date = Date.from(Instant.now())
+        )
+        Helper.MarriedMap[player.uniqueId] = newUnity
+        Helper.MarriedMap[requester.uniqueId] = newUnity
+        val newConfig = config.copy(unities = config.unities + newUnity)
         configAccessor.set(newConfig)
 
         val broadcastMessage = config.texts.unityBroadcast.apply(mapOf(

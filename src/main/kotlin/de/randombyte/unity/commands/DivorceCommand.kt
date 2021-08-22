@@ -3,6 +3,7 @@ package de.randombyte.unity.commands
 import de.randombyte.kosp.config.serializers.duration.SimpleDurationTypeSerializer
 import de.randombyte.kosp.extensions.getUser
 import de.randombyte.kosp.extensions.red
+import Helper
 import de.randombyte.unity.config.Config
 import de.randombyte.unity.config.ConfigAccessor
 import org.spongepowered.api.command.CommandException
@@ -22,6 +23,8 @@ class DivorceCommand(
             val durationString = SimpleDurationTypeSerializer.serialize(Duration.ofMillis(remainingMillis), outputMilliseconds = false)
             throw CommandException("You can't divorce yet! Wait another $durationString.".red())
         }
+        Helper.MarriedMap.remove(thisUnity.member1)
+        Helper.MarriedMap.remove(thisUnity.member2)
 
         val newConfig = config.copy(unities = config.unities - thisUnity)
         configAccessor.set(newConfig)

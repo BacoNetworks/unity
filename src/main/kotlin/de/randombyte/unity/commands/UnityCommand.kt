@@ -2,6 +2,7 @@ package de.randombyte.unity.commands
 
 import de.randombyte.kosp.PlayerExecutedCommand
 import de.randombyte.kosp.extensions.toText
+import Helper
 import de.randombyte.unity.config.Config
 import de.randombyte.unity.config.ConfigAccessor
 import org.spongepowered.api.command.CommandException
@@ -14,9 +15,7 @@ abstract class UnityCommand(
 ) : PlayerExecutedCommand() {
     override fun executedByPlayer(player: Player, args: CommandContext): CommandResult {
         val config = configAccessor.get()
-        val unities = config.unities
-        val unity = unities.getUnity(player.uniqueId)
-                ?: throw CommandException("You must be married to someone to execute this command!".toText())
+        val unity = Helper.MarriedMap[player.uniqueId] ?: throw CommandException("You must be married to someone to execute this command!".toText());
         return executedByUnityMember(player, args, unity, config)
     }
 

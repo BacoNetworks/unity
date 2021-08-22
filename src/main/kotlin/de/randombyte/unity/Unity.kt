@@ -3,8 +3,10 @@ package de.randombyte.unity
 import com.flowpowered.math.vector.Vector3d
 import com.google.inject.Inject
 import de.randombyte.kosp.config.ConfigManager
-import de.randombyte.kosp.config.serializers.date.SimpleDateTypeSerializer
-import de.randombyte.kosp.extensions.*
+import de.randombyte.kosp.extensions.getPlayer
+import de.randombyte.kosp.extensions.sendTo
+import de.randombyte.kosp.extensions.toText
+import Helper.MarriedPrefix
 import de.randombyte.unity.Unity.Companion.AUTHOR
 import de.randombyte.unity.Unity.Companion.ID
 import de.randombyte.unity.Unity.Companion.NAME
@@ -13,11 +15,10 @@ import de.randombyte.unity.Unity.Companion.VERSION
 import de.randombyte.unity.commands.*
 import de.randombyte.unity.config.Config
 import de.randombyte.unity.config.ConfigAccessor
-import io.github.nucleuspowered.nucleus.api.service.NucleusMessageTokenService
+import Helper
 import ninja.leaping.configurate.commented.CommentedConfigurationNode
 import ninja.leaping.configurate.loader.ConfigurationLoader
 import org.apache.commons.lang3.RandomUtils
-import org.bstats.sponge.Metrics2
 import org.slf4j.Logger
 import org.spongepowered.api.Sponge
 import org.spongepowered.api.command.args.GenericArguments.player
@@ -34,14 +35,13 @@ import org.spongepowered.api.event.filter.Getter
 import org.spongepowered.api.event.filter.cause.Root
 import org.spongepowered.api.event.game.GameReloadEvent
 import org.spongepowered.api.event.game.state.GameInitializationEvent
+import org.spongepowered.api.event.game.state.GameStartedServerEvent
 import org.spongepowered.api.event.game.state.GameStartingServerEvent
 import org.spongepowered.api.event.network.ClientConnectionEvent
-import org.spongepowered.api.event.service.ChangeServiceProviderEvent
 import org.spongepowered.api.plugin.Dependency
 import org.spongepowered.api.plugin.Plugin
 import org.spongepowered.api.plugin.PluginContainer
 import org.spongepowered.api.scheduler.Task
-import org.spongepowered.api.text.action.TextActions
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
@@ -54,14 +54,14 @@ import java.util.concurrent.TimeUnit
 class Unity @Inject constructor(
         private val logger: Logger,
         @DefaultConfig(sharedRoot = true) configurationLoader: ConfigurationLoader<CommentedConfigurationNode>,
-        private val metrics: Metrics2,
-        private val pluginContainer: PluginContainer
+        public val pluginContainer: PluginContainer
 ) {
     companion object {
         const val ID = "unity"
         const val NAME = "Unity"
         const val VERSION = "2.3.2"
         const val AUTHOR = "RandomByte"
+
 
         const val NUCLEUS_ID = "nucleus"
 
@@ -114,6 +114,7 @@ class Unity @Inject constructor(
         // do this here to ensure all worlds are loaded for location deserialization
         loadConfig()
         saveConfig()
+        Helper.container = this.pluginContainer
 
         if (needsMotivationalSpeech()) {
             Task.builder()
@@ -121,6 +122,14 @@ class Unity @Inject constructor(
                     .execute { -> Messages.motivationalSpeech.forEach { it.sendTo(Sponge.getServer().console) } }
                     .submit(this)
         }
+    }
+
+    @Listener
+    fun onServerStarted(event: GameStartedServerEvent) {
+        logger.info("Loading " + config.unities.size + " active marriages!")
+        Helper.FillHashMap(config.unities)
+        MarriedPrefix = config.marriedPrefix;
+        Helper.RegisterNucleusToken();
     }
 
     @Listener
@@ -132,33 +141,21 @@ class Unity @Inject constructor(
         logger.info("Reloaded!")
     }
 
-    @Listener
-    fun onChangeServiceProvider(event: ChangeServiceProviderEvent) {
-        if (event.service.name != "io.github.nucleuspowered.nucleus.api.service.NucleusMessageTokenService") return
-        (event.newProvider as NucleusMessageTokenService).register(pluginContainer,
-                NucleusMessageTokenService.TokenParser { tokenInput, source, _ ->
-                    if (tokenInput != "marry" || source !is Player) return@TokenParser Optional.empty()
-
-                    val config = configManager.get()
-                    val unity = config.unities.getUnity(source.uniqueId) ?: return@TokenParser Optional.empty()
-
-                    val otherMemberName = unity.getOtherMember(source.uniqueId).getUser()?.name ?: "Unknown"
-                    SimpleDateTypeSerializer
-                    val hoverText = "Married to ".toText() + otherMemberName.gold() + ", " + dateOutputFormat.format(unity.date)
-
-                    return@TokenParser config.marriedPrefix.action(TextActions.showText(hoverText)).toOptional()
-        })
-    }
 
     @Listener
     fun onKissPartner(event: InteractEntityEvent.Secondary.MainHand, @Root player: Player, @Getter("getTargetEntity") partner: Player) {
-        if (!config.kissingEnabled || !player.get(Keys.IS_SNEAKING).orElse(false)) return
-        with (config.unities) {
-            val unity = getUnity(player.uniqueId) ?: return
-            if (unity.getOtherMember(player.uniqueId) != partner.uniqueId) return
-            partner.world.spawnParticles(kissingParticleEffect.value, partner.getProperty(EyeLocationProperty::class.java).get().value)
+        if (!Helper.isKissingEnabled || !player.get(Keys.IS_SNEAKING).orElse(false)) {
+            return
         }
+        val unity = Helper.MarriedMap[player.uniqueId] ?: return;
+        val unity2 = Helper.MarriedMap[partner.uniqueId] ?: return;
+
+        if (unity != unity2) {
+            return
+        }
+        partner.world.spawnParticles(kissingParticleEffect.value, partner.getProperty(EyeLocationProperty::class.java).get().value)
     }
+
 
     private fun registerCommands() {
         val removeRequest = { requester: UUID, requestee: UUID ->
