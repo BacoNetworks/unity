@@ -43,7 +43,7 @@ public class Helper {
                 if(user1 != null){
                     username1 = user1.getName();
                 }
-                User user2 = getUserFromUUID(unity.getMember1());
+                User user2 = getUserFromUUID(unity.getMember2());
                 if(user2 != null){
                     username2 = user2.getName();
                 }
